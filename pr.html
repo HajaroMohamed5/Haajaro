@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Student Attendance System | CA242</title>
+
+<style>
+:root {
+    --primary:#3434f6;
+    --danger:#f62222;
+    --success:#16a34a;
+    --bg:#ffffff;
+}
+
+body {
+    font-family: Arial, sans-serif;
+    background: var(--bg);
+    margin:0;
+    display:flex;
+    justify-content:center;
+    padding:20px;
+}
+
+.app-card {
+    background:#78a0fd;
+    width:100%;
+    max-width:700px;
+    min-height: 100vh;
+    padding:20px;
+    border-radius:12px;
+    box-shadow:0 4px 8px rgba(0,0,0,0.1);
+}
+
+header {
+    text-align:center;
+    border-bottom:2px solid #eee;
+    margin-bottom:20px;
+}
+
+.input-row {
+    display:flex;
+    gap:10px;
+    flex-wrap:wrap;
+}
+
+input {
+    flex:1;
+    padding:10px;
+    border:1px solid #cbd5e1;
+    border-radius:6px;
+}
+
+button {
+    padding:10px 18px;
+    border:none;
+    border-radius:6px;
+    cursor:pointer;
+    font-weight:bold;
+}
+
+.btn-primary {
+    background:var(--primary);
+    color:white;
+}
+
+.feedback {
+    min-height:20px;
+    margin-top:6px;
+    font-size:14px;
+    font-weight:bold;
+}
+
+table {
+    width:100%;
+    margin-top:20px;
+    border-collapse:collapse;
+    table-layout:fixed;
+}
+
+th, td {
+    padding:10px;
+    border-bottom:1px solid #eee;
+    text-align:left;
+    word-wrap:break-word;
+}
+
+.present {
+    background:var(--success);
+    color:white;
+}
+
+.absent {
+    background:var(--danger);
+    color:white;
+}
+
+.delete-btn {
+    background:#ef4444;
+    color:white;
+    padding:6px 10px;
+    border-radius:6px;
+    font-size:12px;
+}
+
+.stats-bar {
+    margin-top:20px;
+    display:flex;
+    justify-content:space-between;
+    font-weight:bold;
+}
+
+/* RESPONSIVE */
+@media (max-width:600px){
+    table {
+        display:block;
+        overflow-x:auto;
+    }
+
+    th, td {
+        font-size:13px;
+        padding:8px;
+    }
+
+    .delete-btn,
+    .present,
+    .absent {
+        width:100%;
+        display:block;
+        margin-top:4px;
+        text-align:center;
+    }
+}
+</style>
+</head>
+<body>
+
+<div class="app-card">
+<header>
+    <h2>Student Attendance System</h2>
+</header>
+
+<div class="input-row">
+    <input type="text" id="studentName" placeholder="Full Name">
+    <input type="text" id="studentId" placeholder="Student ID">
+    <input type="text" id="studentClass" placeholder="Class">
+    <button class="btn-primary" id="addBtn">Add Student</button>
+</div>
+<div id="feedbackMessage" class="feedback"></div>
+
+<table>
+<thead>
+<tr>
+    <th>ID</th>
+    <th>Name</th>
+    <th>Class</th>
+    <th>Attendance</th>
+    <th>Action</th>
+</tr>
+</thead>
+<tbody id="tableBody"></tbody>
+</table>
+
+<div class="stats-bar">
+    <span>Total: <span id="totalTxt">0</span></span>
+    <span>Present: <span id="presentTxt">0</span></span>
+    <span>Absent: <span id="absentTxt">0</span></span>
+</div>
+</div>
+
+<script>
+// 1. Marka hore soo qaad xogta kaydsan hadday jirto
+let studentData = JSON.parse(localStorage.getItem("attendance_data")) || [];
+
+const nameInput = document.getElementById("studentName");
+const idInput = document.getElementById("studentId");
+const classInput = document.getElementById("studentClass");
+const tableBody = document.getElementById("tableBody");
+const feedback = document.getElementById("feedbackMessage");
+const addBtn = document.getElementById("addBtn");
+
+/* DOM EVENT */
+addBtn.addEventListener("click", handleSubmission);
+
+// Marka ugu horreysa ee bogga la furo, soo saar xogta kaydsan
+updateUI();
+
+function handleSubmission(){
+    const name = nameInput.value.trim();
+    const id = idInput.value.trim();
+    const cls = classInput.value.trim();
+
+    /* VALIDATION */
+    if(!name || !id || !cls){
+        showFeedback("All fields are required!", "red");
+        return;
+    }
+
+    if(!isNaN(name)){
+        showFeedback("name must be contains letters!", "red");
+        return;
+    }
+
+    const exists = studentData.some(s => s.studentId === id);
+    if(exists){
+        showFeedback("Student ID already exists!", "red");
+        return;
+    }
+
+    const student = {
+        id: Date.now(),
+        studentId:id,
+        name:name,
+        class:cls,
+        isPresent:true
+    };
+
+    studentData.push(student);
+    clearInputs();
+    showFeedback("student added succeessfully!", "green");
+    updateUI();
+}
+
+function updateUI(){
+    // 2. Kaydi xogta hadda jirta markasta oo isbedel dhaco
+    localStorage.setItem("attendance_data", JSON.stringify(studentData));
+
+    tableBody.innerHTML = "";
+    let presentCount = 0;
+
+    studentData.forEach(student => {
+        if(student.isPresent) presentCount++;
+
+        const row = document.createElement("tr");
+        row.innerHTML = `
+            <td>${student.studentId}</td>
+            <td>${student.name}</td>
+            <td>${student.class}</td>
+            <td>
+                <button class="${student.isPresent ? 'present':'absent'}">
+                    ${student.isPresent ? 'Present':'Absent'}
+                </button>
+            </td>
+            <td>
+                <button class="delete-btn">Delete</button>
+            </td>
+        `;
+
+        /* STATUS TOGGLE */
+        row.querySelector("button").addEventListener("click", ()=>{
+            student.isPresent = !student.isPresent;
+            updateUI();
+        });
+
+        /* DELETE WITH CONFIRM */
+        row.querySelector(".delete-btn").addEventListener("click", ()=>{
+            const ok = confirm("are you sure you want to delete?");
+            if(ok){
+                studentData = studentData.filter(s => s.id !== student.id);
+                updateUI();
+            }
+        });
+
+        tableBody.appendChild(row);
+    });
+
+    document.getElementById("totalTxt").innerText = studentData.length;
+    document.getElementById("presentTxt").innerText = presentCount;
+    document.getElementById("absentTxt").innerText = studentData.length - presentCount;
+}
+
+function clearInputs(){
+    nameInput.value="";
+    idInput.value="";
+    classInput.value="";
+}
+
+function showFeedback(msg,color){
+    feedback.innerText = msg;
+    feedback.style.color = color;
+    setTimeout(()=> feedback.innerText="",3000);
+}
+</script>
+
+</body>
+</html>
